@@ -1,0 +1,56 @@
+# Copyright (C) 2026 EclipseSource GmbH and others.
+#
+# This program and the accompanying materials are made available under the
+# terms of the MIT License, which is available in the project root.
+#
+# SPDX-License-Identifier: MIT
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: shellcheck
+        run: |
+          mapfile -t scripts < <(git ls-files '*.sh')
+          printf 'checking:\n%s\n' "${scripts[@]}"
+          shellcheck "${scripts[@]}"
+
+      - name: validate extension specs
+        run: |
+          status=0
+          for spec in extensions/*/*/spec.yaml; do
+            echo "checking $spec"
+            for key in schemaVersion kind name description; do
+              if [ "$(yq -r ".$key // \"\"" "$spec")" = "" ]; then
+                echo "::error file=$spec::missing required key: $key"
+                status=1
+              fi
+            done
+            kind="$(yq -r '.kind // ""' "$spec")"
+            case "$kind" in
+              sandbox | mixin | "") ;;
+              *)
+                echo "::error file=$spec::kind must be sandbox or mixin, got: $kind"
+                status=1
+                ;;
+            esac
+            dir="$(basename "$(dirname "$spec")")"
+            name="$(yq -r '.name // ""' "$spec")"
+            if [ -n "$name" ] && [ "$name" != "$dir" ]; then
+              echo "::error file=$spec::name ($name) must match the directory name ($dir)"
+              status=1
+            fi
+          done
+          exit "$status"
