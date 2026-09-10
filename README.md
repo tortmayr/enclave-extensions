@@ -7,9 +7,11 @@ Custom [enclave](https://github.com/eclipsesource/enclave) extensions.
 ```text
 extensions/
 └── features/
-    └── playwright-cli/          # Playwright agent CLI + Google Chrome + agent skill
+    ├── playwright-cli/          # Playwright agent CLI + Google Chrome + agent skill
+    └── shell-ext/               # portable dotfiles: zsh, powerlevel10k, plugins
 scripts/
-└── update-playwright-cli.sh     # re-pin the CLI version, regenerate its skill
+├── update-playwright-cli.sh     # re-pin the CLI version, regenerate its skill
+└── update-shell-ext.sh          # re-pin the dotfiles commit
 ```
 
 ## Installing
@@ -26,7 +28,10 @@ Installing a feature does not switch it on. Everything here sets
 `~/.config/enclave/projects/<hash>/config.json`:
 
 ```json
-{ "features": ["+playwright-cli"] }
+{ "features": ["+playwright-cli", "+shell-ext"] }
 ```
 
 See each feature's `README.md` for what it installs.
+
+`shell-ext` replaces the built-in `shell-extras`; enable one or the other,
+not both.
