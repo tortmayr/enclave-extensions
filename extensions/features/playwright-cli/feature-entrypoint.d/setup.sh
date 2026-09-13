@@ -6,6 +6,6 @@
 #
 # SPDX-License-Identifier: MIT
 
-# Point Playwright at the shared browser installation (ffmpeg for video
-# recording lives there; install.sh populates it at build time).
+# Point Playwright at the shared browser directory. install.sh puts the ffmpeg
+# binary for video recording there during the image build.
 export PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers

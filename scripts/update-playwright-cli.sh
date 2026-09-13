@@ -6,10 +6,11 @@
 #
 # SPDX-License-Identifier: MIT
 
-# Regenerate the playwright-cli feature: pin the @playwright/cli version and
-# extract the agent skill and license shipped with exactly that version.
+# Regenerate the playwright-cli feature. Pin the @playwright/cli version and
+# extract its agent skill and license.
 #
-# Usage: scripts/update-playwright-cli.sh [version]   (defaults to latest)
+# Usage: scripts/update-playwright-cli.sh [version]
+# The script uses the latest release when no version is given.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -20,8 +21,8 @@ version="${1:-$(npm view @playwright/cli version)}"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
-# Let the CLI emit its own skill so the layout tracks upstream. --global with
-# an isolated HOME keeps the workspace-init side effects out of the repo.
+# Let the CLI generate its skill so the directory matches the package. An
+# isolated HOME keeps workspace initialization from changing the repository.
 mkdir -p "$tmp/home" "$tmp/ws"
 (cd "$tmp/ws" && HOME="$tmp/home" npx -y "@playwright/cli@${version}" install --skills claude --global)
 
@@ -36,14 +37,14 @@ mkdir -p "$feature_dir/skills"
 cp -r "$skill_src" "$feature_dir/skills/playwright-cli"
 printf '%s\n' "$version" > "$feature_dir/playwright-cli.version"
 
-# Take the license from the package itself rather than from a boilerplate
-# copy, so the vendored terms and the copyright holder track upstream along
-# with the skill. NOTICE.md points at this file.
+# Copy the license from the package. This keeps the vendored terms and copyright
+# holder tied to the installed version. NOTICE.md points to this file.
 tarball="$(cd "$tmp" && npm pack --silent "@playwright/cli@${version}")"
 tar -xzf "$tmp/$tarball" -C "$tmp" package/LICENSE
 mkdir -p "$feature_dir/LICENSES"
 cp "$tmp/package/LICENSE" "$feature_dir/LICENSES/Apache-2.0.txt"
 
-echo "playwright-cli feature pinned to @playwright/cli@${version}; review and commit."
-echo "If the license changed, rename LICENSES/Apache-2.0.txt (and this script's"
-echo "destination path) and update NOTICE.md to match."
+echo "Pinned the playwright-cli feature to @playwright/cli@${version}."
+echo "Review and commit the changes."
+echo "If the license changed, rename LICENSES/Apache-2.0.txt and update"
+echo "the destination in this script and NOTICE.md."
