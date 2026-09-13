@@ -9,7 +9,7 @@ schemaVersion: "1"
 kind: mixin
 name: playwright-cli
 displayName: Playwright CLI
-description: Playwright agent CLI (playwright-cli) with Google Chrome and the browser-automation skill
+description: Playwright agent CLI with Google Chrome and the browser-automation skill
 defaultEnabled: false
 needsRoot: true
 failOnInstallError: true
