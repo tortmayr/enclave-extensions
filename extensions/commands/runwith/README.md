@@ -8,6 +8,7 @@ level into each harness's own flag.
 enclave runwith claude fable high
 enclave runwith codex gpt-5.3-codex high
 enclave runwith pi --list sonnet   # search the models pi offers
+enclave runwith pi --refresh       # rebuild the pi model cache
 enclave runwith --refresh          # rebuild the model cache for every tool
 ```
 
@@ -19,7 +20,8 @@ Listing models means starting a container and asking the harness, so
 `runwith` caches the list per tool under `$XDG_CACHE_HOME/enclave/models/`. The
 cache refreshes on use once it is older than `ENCLAVE_MODEL_CACHE_TTL_DAYS`
 days (default 7, `0` disables expiry). `runwith` checks the model and effort
-level against the cache before launching. Pass `--no-verify` to skip the check.
+level against the cache before launching. Without a cache it skips the check
+rather than start an extra container, and `--no-verify` skips it explicitly.
 
 ## Enable the feature
 

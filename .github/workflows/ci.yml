@@ -23,7 +23,7 @@ jobs:
 
       - name: shellcheck
         run: |
-          mapfile -t scripts < <(git ls-files '*.sh')
+          mapfile -t scripts < <(git ls-files '*.sh' 'extensions/*/*/commands/host/*')
           printf 'checking:\n%s\n' "${scripts[@]}"
           shellcheck "${scripts[@]}"
 
