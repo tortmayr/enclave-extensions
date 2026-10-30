@@ -11,8 +11,7 @@ Custom [enclave](https://github.com/eclipsesource/enclave) extensions.
 │   │   ├── runwith/             # Start an agent with a chosen model and effort level
 │   │   └── usage/               # Run ccusage over enclave sessions
 │   └── features/
-│       ├── playwright-cli/      # Playwright CLI, Chrome, and agent skill
-│       └── theia-dev/           # Native dependencies for Theia development
+│       └── playwright-cli/      # Playwright CLI, Chrome, and agent skill
 └── scripts/
     └── update-playwright-cli.sh # Update the CLI version and regenerate its skill
 ```
@@ -32,12 +31,6 @@ sets `defaultEnabled: false`, so enable each feature per project in
 
 ```json
 { "features": ["+playwright-cli"] }
-```
-
-For a Theia project, enable the `theia-dev` feature:
-
-```json
-{ "features": ["+theia-dev"] }
 ```
 
 See each feature's `README.md` for what it installs.
