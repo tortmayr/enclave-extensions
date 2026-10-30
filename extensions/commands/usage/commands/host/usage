@@ -199,11 +199,12 @@ if ! $include_host; then
 	mkdir -p "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME" "$XDG_CACHE_HOME"
 
 	unset \
-		AMP_DATA_DIR CODEBUFF_DATA_DIR COPILOT_OTEL_FILE_EXPORTER_PATH \
-		DROID_SESSIONS_DIR GOOSE_PATH_ROOT HERMES_HOME KILO_DATA_DIR \
-		KIMI_DATA_DIR OPENCLAW_DIR OPENCODE_DATA_DIR QWEN_DATA_DIR
+		AMP_DATA_DIR ANTIGRAVITY_DATA_DIR CODEBUFF_DATA_DIR COPILOT_HOME \
+		COPILOT_OTEL_FILE_EXPORTER_PATH DROID_SESSIONS_DIR GOOSE_PATH_ROOT \
+		GROK_HOME HERMES_HOME KILO_DATA_DIR KIMI_DATA_DIR OPENCLAW_DIR \
+		OPENCODE_DATA_DIR QWEN_DATA_DIR ZCODE_HOME
 fi
 
 # The npm cache stays on the real home so the isolated HOME does not refetch
 # ccusage on every run.
-npx --yes --cache "$host_home/.npm" ccusage@20.0.17 ${forwarded[@]+"${forwarded[@]}"}
+npx --yes --cache "$host_home/.npm" ccusage@20.0.45 ${forwarded[@]+"${forwarded[@]}"}
