@@ -7,6 +7,9 @@ Custom [enclave](https://github.com/eclipsesource/enclave) extensions.
 ```text
 .
 ├── extensions/
+│   ├── commands/                # Features that only add `enclave <verb>` host commands
+│   │   ├── runwith/             # Start an agent with a chosen model and effort level
+│   │   └── usage/               # Run ccusage over enclave sessions
 │   └── features/
 │       ├── playwright-cli/      # Playwright CLI, Chrome, and agent skill
 │       └── theia-dev/           # Native dependencies for Theia development
@@ -38,3 +41,10 @@ For a Theia project, enable the `theia-dev` feature:
 ```
 
 See each feature's `README.md` for what it installs.
+
+## Host commands
+
+Each extension under `extensions/commands/` is a feature that only adds a host
+command, such as `enclave usage`. `enclave features add` installs them like any
+other feature. The command is available as soon as the extension is installed,
+so you do not need to enable these features.

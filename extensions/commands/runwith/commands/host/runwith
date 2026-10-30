@@ -1,0 +1,341 @@
+#!/usr/bin/env bash
+# Copyright (C) 2026 EclipseSource GmbH and others.
+#
+# This program and the accompanying materials are made available under the
+# terms of the MIT License, which is available in the project root.
+#
+# SPDX-License-Identifier: MIT
+
+# Start an agent with invocation-specific model and reasoning settings.
+# The runwith feature installs this file as the `enclave runwith` host command.
+#
+# Listing models means booting a container and asking the harness, so the
+# answer is cached per tool under $XDG_CACHE_HOME/enclave/models/<tool>.tsv.
+set -euo pipefail
+
+self_name=$(basename "$0")
+
+usage() {
+	cat <<EOF
+Usage:
+  enclave $self_name <tool> <model> [effort-level] [--no-verify]
+  enclave $self_name <tool> --list [search]
+  enclave $self_name --refresh
+
+Start an agent with invocation-specific model and reasoning settings, or list
+the models available to the selected harness.
+
+Tools:
+  claude  Pass effort with --effort
+  codex   Pass effort as the model_reasoning_effort config override
+  pi      Pass effort with --thinking
+
+Options:
+      --list              List cached models, optionally filtered by a search term
+      --refresh           Rebuild the model cache for every tool
+      --no-verify         Launch without checking the model against the cache
+  -h, --help              Show this help
+
+Listing models requires a container, so results are cached per tool in
+\$XDG_CACHE_HOME/enclave/models and refreshed automatically once they are older
+than ENCLAVE_MODEL_CACHE_TTL_DAYS days (default 7, 0 disables expiry).
+
+Examples:
+  enclave $self_name claude fable
+  enclave $self_name claude fable high
+  enclave $self_name codex gpt-5.3-codex high
+  enclave $self_name pi anthropic/claude-opus-4-6 high
+  enclave $self_name claude --list
+  enclave $self_name pi --list sonnet
+  enclave $self_name --refresh
+EOF
+}
+
+die() {
+	printf 'enclave %s: %s\n' "$self_name" "$*" >&2
+	exit 2
+}
+
+note() {
+	printf 'enclave %s: %s\n' "$self_name" "$*" >&2
+}
+
+TOOLS=(claude codex pi)
+
+esc=$'\033'
+cache_root="${XDG_CACHE_HOME:-$HOME/.cache}/enclave/models"
+cache_ttl_days=${ENCLAVE_MODEL_CACHE_TTL_DAYS:-7}
+
+cache_file() {
+	printf '%s/%s.tsv' "$cache_root" "$1"
+}
+
+# A cache entry is fresh while it is younger than the TTL. A TTL of 0 means an
+# entry never expires on its own and only `--refresh` replaces it.
+cache_is_fresh() {
+	local file
+	file=$(cache_file "$1")
+	[[ -s $file ]] || return 1
+	[[ $cache_ttl_days == 0 ]] && return 0
+	[[ -n $(find "$file" -mtime "-$cache_ttl_days" 2>/dev/null) ]]
+}
+
+# Each harness reports models in its own shape. These scripts run inside the
+# tool's container and normalise all three onto one tab-separated record:
+#
+#   model <TAB> effort-levels <TAB> default-effort <TAB> description
+#
+# Absent fields are "-" so that no column is ever empty and `column -t` keeps
+# them aligned. The markers fence the payload off from anything `enclave shell`
+# prints around it.
+read -r -d '' claude_fetch <<'EOF' || true
+set -euo pipefail
+printf '%s\n' '__ENCLAVE_MODELS_BEGIN__'
+printf '%s\n' '{"type":"control_request","request_id":"models","request":{"subtype":"list_models"}}' |
+	claude --dangerously-skip-permissions \
+		--print \
+		--input-format stream-json \
+		--output-format stream-json \
+		--verbose |
+	jq -r '
+		# The stream carries one JSON value per line and only one of them holds
+		# the model list, so anything that cannot be indexed is skipped rather
+		# than aborting the whole refresh.
+		select(type == "object")
+		| .response.response.models[]?
+		| (.value // "") as $value
+		| (.resolvedModel // "") as $resolved
+		| [$value,
+		   (((.supportedEffortLevels // []) | join(",")) | if . == "" then "-" else . end),
+		   "-",
+		   ([(.displayName // ""),
+		     (if $resolved != "" and $resolved != $value then "-> " + $resolved else "" end)]
+		    | map(select(. != "")) | join(" ") | if . == "" then "-" else . end)]
+		| @tsv
+	'
+printf '%s\n' '__ENCLAVE_MODELS_END__'
+EOF
+
+read -r -d '' codex_fetch <<'EOF' || true
+set -euo pipefail
+printf '%s\n' '__ENCLAVE_MODELS_BEGIN__'
+codex --dangerously-bypass-approvals-and-sandbox debug models |
+	jq -r '
+		select(type == "object")
+		| .models[]?
+		| select(.visibility == "list")
+		| [(.slug // ""),
+		   (([.supported_reasoning_levels[]?.effort] | join(",")) | if . == "" then "-" else . end),
+		   (.default_reasoning_level // "-"),
+		   (.display_name // "-")]
+		| @tsv
+	'
+printf '%s\n' '__ENCLAVE_MODELS_END__'
+EOF
+
+# pi prints a fixed-width table rather than JSON, and reports thinking support
+# as a yes/no rather than as levels. The levels themselves are the fixed set
+# `pi --help` documents for --thinking.
+read -r -d '' pi_fetch <<'EOF' || true
+set -euo pipefail
+printf '%s\n' '__ENCLAVE_MODELS_BEGIN__'
+pi --list-models |
+	awk '
+		$1 == "provider" && $2 == "model" { seen = 1; next }
+		seen && NF >= 6 {
+			efforts = ($5 == "yes") ? "off,minimal,low,medium,high,xhigh,max" : "-"
+			printf "%s/%s\t%s\t-\tcontext %s, max output %s\n", $1, $2, efforts, $3, $4
+		}
+	'
+printf '%s\n' '__ENCLAVE_MODELS_END__'
+EOF
+
+refresh_tool() {
+	local tool=$1 script tmp file raw
+
+	case "$tool" in
+		claude) script=$claude_fetch ;;
+		codex) script=$codex_fetch ;;
+		pi) script=$pi_fetch ;;
+	esac
+
+	note "listing $tool models (this starts a container)..."
+
+	# `enclave shell` allocates a TTY and refuses to start when stdin is not
+	# one, which a cron job or a `< /dev/null` caller would hit. Borrow the
+	# controlling terminal when stdin itself has been redirected.
+	if [[ -t 0 ]]; then
+		raw=$("$ENCLAVE_BIN" shell --tool "$tool" -- -lc "$script" bash) || raw=
+	elif [[ -r /dev/tty ]]; then
+		raw=$("$ENCLAVE_BIN" shell --tool "$tool" -- -lc "$script" bash </dev/tty) || raw=
+	else
+		die "refreshing the $tool cache needs a terminal; run 'enclave $self_name --refresh' from an interactive shell"
+	fi
+	[[ -n $raw ]] || die "could not list models for $tool"
+
+	mkdir -p "$cache_root"
+	tmp=$(mktemp "$cache_root/.$tool.XXXXXX")
+	# The container runs on a TTY, so the payload arrives interleaved with
+	# carriage returns and terminal control sequences -- a cursor-restore lands
+	# directly in front of the end marker. Strip those before matching, and
+	# match the markers anywhere on the line rather than anchored.
+	printf '%s\n' "$raw" | tr -d '\r' | sed "s/${esc}\[[0-9;?]*[a-zA-Z]//g" | awk '
+		index($0, "__ENCLAVE_MODELS_BEGIN__") { inside = 1; next }
+		index($0, "__ENCLAVE_MODELS_END__")   { inside = 0; next }
+		inside && NF                          { print }
+	' >"$tmp"
+
+	if [[ ! -s $tmp ]]; then
+		rm -f "$tmp"
+		die "$tool reported no models; it is probably not logged in inside enclave (try 'enclave --tool $tool')"
+	fi
+
+	mv "$tmp" "$(cache_file "$tool")"
+	file=$(cache_file "$tool")
+	note "cached $(wc -l <"$file" | tr -d ' ') $tool models in $file"
+}
+
+# Read the cache, refreshing it first when it is missing or past its TTL.
+cached_rows() {
+	local tool=$1
+	cache_is_fresh "$tool" || refresh_tool "$tool"
+	cat "$(cache_file "$tool")"
+}
+
+list_models() {
+	local tool=$1 search=$2 rows
+
+	rows=$(cached_rows "$tool" | awk -F'\t' -v search="$search" '
+		BEGIN { needle = tolower(search) }
+		needle == "" || index(tolower($1 " " $4), needle) { print }
+	')
+
+	if [[ -z $rows ]]; then
+		printf 'No %s models matching %s\n' "$tool" "$search"
+		return
+	fi
+
+	{
+		printf 'MODEL\tEFFORT\tDEFAULT\tDESCRIPTION\n'
+		printf '%s\n' "$rows"
+	} | if command -v column >/dev/null 2>&1; then
+		column -t -s $'\t'
+	else
+		cat
+	fi
+}
+
+# A model missing from a stale cache is a plausible false alarm, so say how to
+# get past it rather than just refusing.
+verify_selection() {
+	local tool=$1 model=$2 effort=$3 file efforts
+
+	file=$(cache_file "$tool")
+	[[ -s $file ]] || return 0
+
+	if ! awk -F'\t' -v model="$model" '$1 == model { found = 1 } END { exit !found }' "$file"; then
+		die "unknown $tool model: $model (run 'enclave $self_name --refresh', or pass --no-verify)"
+	fi
+
+	[[ -n $effort ]] || return 0
+	efforts=$(awk -F'\t' -v model="$model" '
+		$1 == model && $2 != "-" {
+			n = split($2, levels, ",")
+			for (i = 1; i <= n; i++) print levels[i]
+		}
+	' "$file" | paste -sd, -)
+	if [[ -z $efforts ]]; then
+		die "$tool model $model takes no effort level"
+	fi
+	if [[ ",$efforts," != *",$effort,"* ]]; then
+		die "unknown effort level for $model: $effort (available: $efforts)"
+	fi
+}
+
+mode=run
+verify=true
+positionals=()
+
+while (($# > 0)); do
+	case "$1" in
+		-h | --help)
+			usage
+			exit 0
+			;;
+		--list)
+			mode=list
+			;;
+		--refresh)
+			mode=refresh
+			;;
+		--no-verify)
+			verify=false
+			;;
+		--)
+			shift
+			positionals+=("$@")
+			break
+			;;
+		-*)
+			die "unknown option: $1"
+			;;
+		*)
+			positionals+=("$1")
+			;;
+	esac
+	shift
+done
+
+[[ -n ${ENCLAVE_BIN:-} ]] || die 'ENCLAVE_BIN is not set'
+
+# Refreshing covers every tool: a single stale cache is rebuilt on demand by
+# cached_rows, so an explicit refresh is the "rebuild everything" case.
+if [[ $mode == refresh ]]; then
+	((${#positionals[@]} == 0)) || die '--refresh takes no arguments; it rebuilds the cache for every tool'
+	for one in "${TOOLS[@]}"; do
+		refresh_tool "$one"
+	done
+	exit 0
+fi
+
+((${#positionals[@]} >= 1)) || die "tool is required: ${TOOLS[*]} (see --help)"
+tool=${positionals[0]}
+args=("${positionals[@]:1}")
+
+case "$tool" in
+	claude | codex | pi) ;;
+	*) die "unsupported tool: $tool (expected one of: ${TOOLS[*]})" ;;
+esac
+
+case "$mode" in
+	list)
+		((${#args[@]} <= 1)) || die '--list accepts at most one search term'
+		list_models "$tool" "${args[0]:-}"
+		exit 0
+		;;
+esac
+
+((${#args[@]} >= 1)) || die 'model name is required'
+((${#args[@]} <= 2)) || die 'expected a model name and optional effort level'
+
+model=${args[0]}
+effort=${args[1]:-}
+
+if $verify; then
+	verify_selection "$tool" "$model" "$effort"
+fi
+
+harness_args=(--model "$model")
+case "$tool" in
+	claude)
+		[[ -z $effort ]] || harness_args+=(--effort "$effort")
+		;;
+	codex)
+		[[ -z $effort ]] || harness_args+=(-c "model_reasoning_effort=\"$effort\"")
+		;;
+	pi)
+		[[ -z $effort ]] || harness_args+=(--thinking "$effort")
+		;;
+esac
+
+exec "$ENCLAVE_BIN" --tool "$tool" -- "${harness_args[@]}"
