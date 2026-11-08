@@ -8,14 +8,19 @@ Custom [enclave](https://github.com/eclipsesource/enclave) extensions.
 .
 ├── extensions/
 │   ├── commands/                # Features that only add `enclave <verb>` host commands
-│   │   ├── runwith/             # Start an agent with a chosen model and effort level
-│   │   └── usage/               # Run ccusage over enclave sessions
+│   │   └── runwith/             # Start an agent with a chosen model and effort level
 │   └── features/
 │       ├── dotfiles/            # zsh shell environment; dotfiles/ inside is generated
 │       └── playwright-cli/      # Playwright CLI, Chrome, and agent skill
 └── scripts/
     └── update-playwright-cli.sh # Update the CLI version and regenerate its skill
 ```
+
+> [!NOTE]
+> The `usage` command has moved to
+> [eclipsesource/enclave-extensions](https://github.com/eclipsesource/enclave-extensions/tree/main/commands/usage).
+> It is no longer part of this repository, so `enclave features update` removes
+> `enclave usage`. Install it from the new location to keep using it.
 
 ## Install extensions
 
@@ -39,6 +44,6 @@ See each feature's `README.md` for what it installs.
 ## Host commands
 
 Each extension under `extensions/commands/` is a feature that only adds a host
-command, such as `enclave usage`. `enclave features add` installs them like any
+command, such as `enclave runwith`. `enclave features add` installs them like any
 other feature. The command is available as soon as the extension is installed,
 so you do not need to enable these features.
