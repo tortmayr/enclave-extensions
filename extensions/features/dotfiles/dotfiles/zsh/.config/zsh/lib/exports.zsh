@@ -22,7 +22,6 @@ export SCRIPT_LIBRARY_DIR="$ZDOTDIR/lib"
 export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
 
 # fzf in the terminal's 16 colours, so the desktop theme's palette applies (bg+ is muted, color8)
-# A blank gutter: fzf draws it as a bar in the foreground colour when gutter is the default
 export FZF_DEFAULT_OPTS="
   --color=16,fg:7,bg:-1,hl:4
   --color=fg+:15,bg+:8,hl+:12
@@ -30,7 +29,6 @@ export FZF_DEFAULT_OPTS="
   --color=marker:5,spinner:6,header:8
   --color=border:8,label:8,query:7
   --color=gutter:-1,selected-bg:8,selected-fg:15
-  --gutter=' '
   --border='rounded'"
 
 

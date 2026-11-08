@@ -61,7 +61,13 @@ setup_fzf() {
   if [[ ! -f "$_fzf_cache" ]]; then
     [[ -d "$ZSH_CACHE_DIR" ]] || mkdir -p "$ZSH_CACHE_DIR"
     rm -f "$ZSH_CACHE_DIR"/fzf(|-<->).zsh(N)
-    fzf --zsh > "$_fzf_cache"
+    {
+      fzf --zsh
+      # A blank gutter, as the default draws a bar; --gutter needs fzf 0.65+, Debian trixie ships 0.60.
+      if fzf --gutter=' ' --version >/dev/null 2>&1; then
+        print -r -- "FZF_DEFAULT_OPTS+=\" --gutter=' '\""
+      fi
+    } > "$_fzf_cache"
   fi
   source "$_fzf_cache"
 }
