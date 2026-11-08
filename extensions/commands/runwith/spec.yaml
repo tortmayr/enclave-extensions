@@ -6,8 +6,7 @@
 # SPDX-License-Identifier: MIT
 
 schemaVersion: "1"
-kind: mixin
+kind: command
 name: runwith
 displayName: Run With Model
 description: Host command that starts an agent with a chosen model and effort level
-defaultEnabled: false

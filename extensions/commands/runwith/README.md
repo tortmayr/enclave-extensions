@@ -1,8 +1,8 @@
 # runwith
 
-Adds the `enclave runwith` host command. It starts a Claude, Codex or pi session
-with a model and effort level picked for that run, and translates the effort
-level into each harness's own flag.
+Command-only extension providing `enclave runwith`. It starts a Claude, Codex
+or pi session with a model and effort level picked for that run, and translates
+the effort level into each harness's own flag.
 
 ```bash
 enclave runwith claude fable high
@@ -23,7 +23,19 @@ days (default 7, `0` disables expiry). `runwith` checks the model and effort
 level against the cache before launching. Without a cache it skips the check
 rather than start an extra container, and `--no-verify` skips it explicitly.
 
-## Enable the feature
+## Install
 
-You do not need to enable it. Enclave adds the command on every host where the
-extension is installed, and the feature installs nothing into the image.
+Requires an Enclave version with command-extension support:
+
+```bash
+enclave commands add tortmayr/enclave-extensions --name runwith
+```
+
+The command is available immediately after installation. There is no feature to
+enable, container installation, or image rebuild.
+
+If you installed `runwith` as a feature before, remove that copy first:
+
+```bash
+enclave features remove runwith
+```
