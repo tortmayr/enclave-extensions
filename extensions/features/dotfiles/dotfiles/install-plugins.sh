@@ -53,6 +53,12 @@ install_plugin() {
   local dest
   dest="$(plugin_dir "$repo")"
 
+  # The container profile ships no tmux.
+  if [[ "$repo" == catppuccin/tmux ]] && ! command -v tmux >/dev/null 2>&1; then
+    info "tmux not installed, skipping $repo"
+    return
+  fi
+
   if [[ -d "$dest" ]]; then
     if [[ "$FORCE" == false ]]; then
       ok "$repo already installed — skipping (use -f to reinstall)"

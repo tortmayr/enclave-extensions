@@ -15,7 +15,7 @@ needsRoot: false
 failOnInstallError: true
 priority: 90
 aptPackages:
-  # zsh itself, plus every command the dotfiles call. git, tmux, direnv and
+  # zsh itself, plus every command the dotfiles call. git, direnv and
   # ncurses-term are already in the enclave base image.
   - zsh
   - nano
@@ -25,3 +25,6 @@ aptPackages:
   - fzf
   - less
   - lazygit
+  - git-delta
+  - lsof
+  - file

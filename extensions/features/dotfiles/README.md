@@ -1,8 +1,8 @@
 # dotfiles
 
 Makes an interactive enclave session look and behave like my host shell: zsh
-with powerlevel10k and pinned plugins, plus the bash, bat, git, lazygit and
-tmux configs. Use it **instead of** the built-in `shell-extras`, which installs
+with powerlevel10k and pinned plugins, plus the bash, bat, git and lazygit
+configs. Use it **instead of** the built-in `shell-extras`, which installs
 oh-my-zsh and writes `~/.zshrc`. The two do not collide on a file (`ZDOTDIR` is
 `~/.config/zsh` here), but enabling both leaves a dead oh-my-zsh tree in the
 image.

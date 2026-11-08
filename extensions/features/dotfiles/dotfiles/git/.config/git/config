@@ -4,11 +4,7 @@
 # ~/.gitconfig: the identity, plus an include for signing and credentials,
 # which must never reach a container. This file reaches every container
 # through the dotfiles enclave feature.
-[merge]
-	tool = kdiff3
-
 [diff]
-	guitool = kdiff3
 	algorithm = histogram
 	colorMoved = plain
 	mnemonicPrefix = true
@@ -33,16 +29,6 @@
 	pushGerrit = push origin HEAD:refs/for/master
 	rmMerged = branch --merged | git branch --merged | egrep -v \"(^\\*|master|main)\"
 	scrub = clean -xdf -e .worktrees/
-[mergetool "kdiff3"]
-	path = /usr/bin/kdiff3
-	trustExitCode = false
-[mergetool]
-	prompt = false
-[difftool "kdiff3"]
-	path = /usr/bin/kdiff3
-	trustExitCode = false
-[difftool]
-	prompt = false
 [filter "lfs"]
 	clean = git-lfs clean -- %f
 	smudge = git-lfs smudge -- %f
