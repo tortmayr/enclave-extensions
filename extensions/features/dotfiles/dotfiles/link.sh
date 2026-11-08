@@ -1,0 +1,130 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Link (or copy) dotfile packages into a target home directory.
+#
+# Packages are GNU Stow packages: each top-level directory mirrors the paths it
+# owns below $HOME. Which ones to install is named by a profile in profiles/,
+# so the package set lives next to the packages instead of in whatever
+# repository happens to be consuming them.
+#
+# Usage: link.sh [options] [package...]
+#   -p, --profile NAME     profile from profiles/ (default: workstation)
+#   -t, --target DIR       install into DIR (default: $HOME)
+#   -m, --method MODE      stow (default) or copy, for hosts without GNU Stow
+#   -S, --stow             link the packages (default)
+#   -R, --restow           relink them, dropping links a rename left behind
+#   -D, --delete           remove the links again (stow method only)
+#   -n, --dry-run          report what would happen, change nothing
+#   -h, --help             this text
+#
+# Explicit package arguments override --profile.
+#
+# Command shims and zsh plugins are a separate step: see bootstrap.sh.
+#
+# Named link.sh because the enclave feature's entrypoint, which calls it, is
+# install.sh.
+
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+PROFILE="workstation"
+TARGET="$HOME"
+METHOD="stow"
+ACTION="stow"
+DRY_RUN=false
+PACKAGES=()
+
+info() { printf '\033[34m[info]\033[0m  %s\n' "$*"; }
+ok()   { printf '\033[32m[ok]\033[0m    %s\n' "$*"; }
+err()  { printf '\033[31m[err]\033[0m   %s\n' "$*" >&2; }
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -p|--profile) PROFILE="${2:?--profile needs a name}"; shift ;;
+    -t|--target)  TARGET="${2:?--target needs a directory}"; shift ;;
+    -m|--method)  METHOD="${2:?--method needs stow or copy}"; shift ;;
+    -S|--stow)    ACTION="stow" ;;
+    -R|--restow)  ACTION="restow" ;;
+    -D|--delete)  ACTION="delete" ;;
+    -n|--dry-run) DRY_RUN=true ;;
+    -h|--help)    sed -n '4,26p' "$0"; exit 0 ;;
+    -*)           err "Unknown option: $1"; exit 1 ;;
+    *)            PACKAGES+=("$1") ;;
+  esac
+  shift
+done
+
+case "$METHOD" in
+  stow|copy) ;;
+  *) err "--method must be stow or copy, got: $METHOD"; exit 1 ;;
+esac
+
+# Print a profile's package names, one per line.
+profile_packages() {
+  local file="$REPO_DIR/profiles/$1" line
+  if [[ ! -f "$file" ]]; then
+    err "No such profile: $1"
+    err "Available: $(cd "$REPO_DIR/profiles" && echo *)"
+    return 1
+  fi
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%%#*}"
+    line="${line//[[:space:]]/}"
+    if [[ -n "$line" ]]; then printf '%s\n' "$line"; fi
+  done < "$file"
+}
+
+# Resolve the package list: explicit arguments win over the profile.
+if [[ ${#PACKAGES[@]} -eq 0 ]]; then
+  mapfile -t PACKAGES < <(profile_packages "$PROFILE")
+  [[ ${#PACKAGES[@]} -gt 0 ]] || exit 1
+  info "Profile '$PROFILE': ${PACKAGES[*]}"
+fi
+
+for pkg in "${PACKAGES[@]}"; do
+  if [[ ! -d "$REPO_DIR/$pkg" ]]; then
+    err "No such package: $pkg"
+    exit 1
+  fi
+done
+
+if [[ "$METHOD" == "stow" ]] && ! command -v stow >/dev/null 2>&1; then
+  err "GNU Stow is not installed; re-run with --method copy"
+  exit 1
+fi
+
+mkdir -p "$TARGET"
+
+if [[ "$METHOD" == "stow" ]]; then
+  case "$ACTION" in
+    stow)   action_flag=-S ;;
+    restow) action_flag=-R ;;
+    delete) action_flag=-D ;;
+  esac
+  # --no-folding keeps real directories and links individual files, so two
+  # packages (zsh and zsh-host, say) can populate the same directory.
+  args=(-d "$REPO_DIR" -t "$TARGET" --no-folding "$action_flag")
+  $DRY_RUN && args=(-n -v "${args[@]}")
+  stow "${args[@]}" "${PACKAGES[@]}"
+else
+  # Plain copy for images that have no stow: same result, no symlinks back
+  # into a checkout that will not exist at runtime.
+  if [[ "$ACTION" == "delete" ]]; then
+    err "--delete needs the stow method: copied files are not tracked"
+    exit 1
+  fi
+  for pkg in "${PACKAGES[@]}"; do
+    if $DRY_RUN; then
+      info "would copy $pkg/ -> $TARGET/"
+    else
+      cp -a "$REPO_DIR/$pkg/." "$TARGET/"
+    fi
+  done
+fi
+
+$DRY_RUN && { ok "Dry run complete"; exit 0; }
+case "$ACTION" in
+  stow)   ok "Installed ${#PACKAGES[@]} package(s) into $TARGET" ;;
+  restow) ok "Relinked ${#PACKAGES[@]} package(s) in $TARGET" ;;
+  delete) ok "Removed ${#PACKAGES[@]} package(s) from $TARGET" ;;
+esac

@@ -11,6 +11,7 @@ Custom [enclave](https://github.com/eclipsesource/enclave) extensions.
 │   │   ├── runwith/             # Start an agent with a chosen model and effort level
 │   │   └── usage/               # Run ccusage over enclave sessions
 │   └── features/
+│       ├── dotfiles/            # zsh shell environment; dotfiles/ inside is generated
 │       └── playwright-cli/      # Playwright CLI, Chrome, and agent skill
 └── scripts/
     └── update-playwright-cli.sh # Update the CLI version and regenerate its skill

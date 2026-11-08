@@ -1,0 +1,68 @@
+# Portable git configuration, at the XDG path rather than ~/.gitconfig.
+#
+# Git reads both files and ~/.gitconfig wins on a conflict. git-host owns
+# ~/.gitconfig: the identity, plus an include for signing and credentials,
+# which must never reach a container. This file reaches every container
+# through the dotfiles enclave feature.
+[merge]
+	tool = kdiff3
+
+[diff]
+	guitool = kdiff3
+	algorithm = histogram
+	colorMoved = plain
+	mnemonicPrefix = true
+	renames = true
+[init]
+	defaultBranch = main
+[tag]
+	sort = version:refname
+[color]
+	ui = auto
+[alias]
+	alias = config --get-regexp ^alias\\.
+	r = reset --hard
+	ru = reset --hard @{upstream}
+	fru = !sh -c 'git fetch && git ru'
+	can = commit --amend --no-edit
+	rs = reset --soft HEAD^
+	ls = status --porcelain
+	l = log --pretty=oneline
+	u = reset HEAD --
+	ll = log -1 HEAD
+	pushGerrit = push origin HEAD:refs/for/master
+	rmMerged = branch --merged | git branch --merged | egrep -v \"(^\\*|master|main)\"
+	scrub = clean -xdf -e .worktrees/
+[mergetool "kdiff3"]
+	path = /usr/bin/kdiff3
+	trustExitCode = false
+[mergetool]
+	prompt = false
+[difftool "kdiff3"]
+	path = /usr/bin/kdiff3
+	trustExitCode = false
+[difftool]
+	prompt = false
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
+# pi writes its per-install deviceId through the stowed settings.json; keep it out of commits
+[filter "pi-settings"]
+	clean = jq --indent 2 'del(.deviceId)'
+[column]
+	ui = auto
+[branch]
+	sort = -committerdate
+[push]
+	autoSetupRemote = true
+[fetch]
+	prune = true
+	all = true
+[delta]
+	syntax-theme = tokyonight_night
+	dark = true
+# A linked desktop theme (dotfiles/theme) overrides delta's theme; git skips a missing include
+[include]
+	path = ~/.config/theme/current/delta.gitconfig

@@ -1,0 +1,37 @@
+gui:
+  theme:
+    activeBorderColor:
+      - "#7aa2f7"
+      - bold
+    inactiveBorderColor:
+      - "#414868"
+    searchingActiveBorderColor:
+      - "#e0af68"
+      - bold
+    optionsTextColor:
+      - "#7aa2f7"
+    selectedLineBgColor:
+      - "#292e42"
+    inactiveViewSelectedLineBgColor:
+      - "#24283b"
+    cherryPickedCommitFgColor:
+      - "#bb9af7"
+    cherryPickedCommitBgColor:
+      - "#292e42"
+    markedBaseCommitFgColor:
+      - "#e0af68"
+    markedBaseCommitBgColor:
+      - "#292e42"
+    unstagedChangesColor:
+      - "#f7768e"
+    defaultFgColor:
+      - "#a9b1d6"
+    authorColors:
+      "*": "#565f89"
+git:
+  overrideGpg: true
+  # delta's theme and dark/light come from git config ([delta] in git/config)
+  diffRenderers:
+    - command: delta --paging=never --line-numbers
+    - command: delta --paging=never
+    - command: delta --paging=never --line-numbers --side-by-side
