@@ -78,7 +78,8 @@ setup_nvm_lazy_loading() {
     return
   fi
 
-  # Add current node version to PATH without sourcing nvm.sh.
+  # Add the default node version to PATH without sourcing nvm.sh, unless a
+  # parent (an enclave entrypoint, an earlier `nvm use`) already chose one.
   local _nvm_alias
   _nvm_alias=$(<"$NVM_DIR/alias/default") 2>/dev/null
   local _nvm_default_path
@@ -89,7 +90,9 @@ setup_nvm_lazy_loading() {
     local -a _nvm_matches=("$NVM_DIR"/versions/node/v${_nvm_alias}*/bin(N/))
     (( ${#_nvm_matches} )) && _nvm_default_path="${_nvm_matches[-1]}"
   fi
-  [[ -d "$_nvm_default_path" ]] && export PATH="$_nvm_default_path:$PATH"
+  if [[ -d "$_nvm_default_path" && ":$PATH" != *":$NVM_DIR/versions/node/"* ]]; then
+    export PATH="$_nvm_default_path:$PATH"
+  fi
 
   # Lazy-load nvm on first invocation.
   nvm() {
