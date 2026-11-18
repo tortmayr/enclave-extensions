@@ -40,9 +40,9 @@ jobs:
             done
             kind="$(yq -r '.kind // ""' "$spec")"
             case "$kind" in
-              sandbox | mixin | "") ;;
+              sandbox | mixin | command | "") ;;
               *)
-                echo "::error file=$spec::kind must be sandbox or mixin, got: $kind"
+                echo "::error file=$spec::kind must be sandbox, mixin, or command, got: $kind"
                 status=1
                 ;;
             esac
